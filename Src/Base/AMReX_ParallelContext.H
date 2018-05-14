@@ -11,13 +11,16 @@ class Frame
 {
 public:
 
+    Frame (MPI_Comm c, int id, int io_rank);
     explicit Frame (MPI_Comm c);
     Frame (Frame const&) = delete;
     Frame (Frame && rhs) noexcept;
     ~Frame ();
 
+    int MyID   () const { return m_id; }
     int MyProc () const { return m_rank_me; }
     int NProcs () const { return m_nranks; }
+    int IOProc () const { return m_io_rank; }
     int local_to_global_rank (int lrank) const;
     void local_to_global_rank (int* global, const int* local, std::size_t n) const;
     void global_to_local_rank (int* local, const int* global, std::size_t n) const;
@@ -29,9 +32,11 @@ public:
     MPI_Group group = MPI_GROUP_NULL; // to avoid repeatedly creating groups in rank translation
 
 private:
+    int m_id      = -1; // frame ID
     int m_rank_me = -1; // local rank
     int m_nranks  =  0; // local # of ranks
     int m_mpi_tag = -1;
+    int m_io_rank = -1;
 };
 
 extern Vector<Frame> frames; // stack of communicator frames
@@ -44,6 +49,8 @@ inline MPI_Comm GroupAll () { return frames[0].group; }
 inline int NProcsAll () { return frames[0].NProcs(); }
 // my rank in world communicator
 inline int MyProcAll () { return frames[0].MyProc(); }
+// IO rank in world communicator
+inline int IOProcessorNumberAll () { return frames[0].IOProc(); }
 
 // sub-communicator for current frame
 inline MPI_Comm CommunicatorSub () { return frames.back().comm; }
@@ -53,7 +60,11 @@ inline MPI_Group GroupSub () { return frames.back().group; }
 inline int NProcsSub () { return frames.back().NProcs(); }
 // my sub-rank in current frame
 inline int MyProcSub () { return frames.back().MyProc(); }
+// IO sub-rank in current frame
+inline int IOProcessorNumberSub () { return frames.back().IOProc(); }
 
+// string describing task in fork-join tree
+std::string task_id_str();
 // get and increment mpi tag in current frame
 inline int get_inc_mpi_tag () { return frames.back().get_inc_mpi_tag(); }
 // translate between local rank and global rank
@@ -65,6 +76,7 @@ inline void global_to_local_rank (int* local, const int* global, int n)
     { frames.back().global_to_local_rank(local, global, n); }
 
 inline void push (MPI_Comm c) { frames.emplace_back(c); }
+inline void push (MPI_Comm c, int id, int io_rank) { frames.emplace_back(c, id, io_rank); }
 // Note that it's the user's responsibility to free the MPI_Comm
 inline void pop () { frames.pop_back(); }
 

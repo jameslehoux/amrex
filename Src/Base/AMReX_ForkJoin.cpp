@@ -56,7 +56,10 @@ ForkJoin::init(const Vector<int> &task_rank_n)
     if (flag_verbose) {
         amrex::Print() << "Initialized ForkJoin:\n";
         for (int i = 0; i < task_n; ++i) {
-            amrex::Print() << "  Task " << i << " has " << NProcsTask(i) << " Ranks: [" << split_bounds[i] << ", " << split_bounds[i+1] << ")\n";
+            int glo_rank_lo = ParallelContext::local_to_global_rank(split_bounds[i]);
+            int glo_rank_hi = ParallelContext::local_to_global_rank(split_bounds[i+1]-1);
+            amrex::Print() << "  Task " << i << " has " << NProcsTask(i)
+                           << " Ranks: [" << glo_rank_lo << ", " << glo_rank_hi << "]\n";
         }
     }
 }

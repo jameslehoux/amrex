@@ -3,8 +3,10 @@
 
 #include <sstream>
 #include <fstream>
+#include <iostream>
 #include <iomanip>
 
+#include <AMReX_ParallelContext.H>
 #include <AMReX_ParallelDescriptor.H>
 
 namespace amrex
@@ -21,8 +23,8 @@ namespace amrex
     * Example: Print() << " x = " << x << std::endl;  
     */
 	Print (std::ostream& os_ = std::cout) 
-	    : rank(ParallelDescriptor::IOProcessorNumber())
-	    , comm(ParallelDescriptor::Communicator())
+	    : rank(ParallelContext::IOProcessorNumberSub())
+	    , comm(ParallelContext::CommunicatorSub())
 	    , os(os_)
 	    { ss.precision(os.precision()); }
 
@@ -32,7 +34,7 @@ namespace amrex
     */
 	Print (int rank_, std::ostream& os_ = std::cout) 
 	    : rank(rank_)
-	    , comm(ParallelDescriptor::Communicator())
+	    , comm(ParallelContext::CommunicatorSub())
 	    , os(os_)
 	    { ss.precision(os.precision()); }
 
@@ -49,7 +51,8 @@ namespace amrex
 	~Print () {
 	    if (rank == AllProcs || rank == ParallelDescriptor::MyProc(comm)) {
 		os.flush();
-		os << ss.str();
+                os << ParallelContext::task_id_str();
+                os << ss.str();
 		os.flush();
 	    }
 	}

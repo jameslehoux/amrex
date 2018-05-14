@@ -105,7 +105,7 @@ class ForkJoin
     {
         MPI_Comm task_comm = split_tasks();
         copy_data_to_tasks(task_comm); // move data to local tasks
-        ParallelContext::push(task_comm);
+        ParallelContext::push(task_comm, task_me, 0);
         fn(*this);
         ParallelContext::pop();
 #ifdef BL_USE_MPI

@@ -1,3 +1,5 @@
+#include <sstream>
+
 #include <AMReX_ParallelContext.H>
 #include <AMReX_ParallelDescriptor.H>
 
@@ -6,9 +8,11 @@ namespace ParallelContext {
 
 Vector<Frame> frames; // stack of communicator frames
 
-Frame::Frame (MPI_Comm c)
+Frame::Frame (MPI_Comm c, int id, int io_rank)
     : comm(c),
-      m_mpi_tag(ParallelDescriptor::MinTag())
+      m_id(id),
+      m_mpi_tag(ParallelDescriptor::MinTag()),
+      m_io_rank(io_rank)
 {
 #ifdef BL_USE_MPI
     MPI_Comm_group(comm, &group);
@@ -20,12 +24,17 @@ Frame::Frame (MPI_Comm c)
 #endif
 }
 
+Frame::Frame (MPI_Comm c)
+    : Frame(c, -1, ParallelDescriptor::IOProcessorNumber()) {}
+
 Frame::Frame (Frame && rhs) noexcept
     : comm     (rhs.comm),
       group    (rhs.group),
+      m_id     (rhs.m_id),
       m_rank_me(rhs.m_rank_me),
       m_nranks (rhs.m_nranks),
-      m_mpi_tag(rhs.m_mpi_tag)
+      m_mpi_tag(rhs.m_mpi_tag),
+      m_io_rank(rhs.m_io_rank)
 {
     rhs.group = MPI_GROUP_NULL;
 }
@@ -96,6 +105,25 @@ Frame::get_inc_mpi_tag ()
     m_mpi_tag = (m_mpi_tag < ParallelDescriptor::MaxTag()) ?
         m_mpi_tag + 1 : ParallelDescriptor::MinTag();
     return cur_tag;
+}
+
+// return a string describing task in fork-join tree
+std::string task_id_str()
+{
+    std::ostringstream ss;
+    if (frames.back().MyID() != -1) {
+        ss << "Task (";
+        bool flag_first = true;
+        for (int i = 1; i < frames.size(); ++i) {
+            if (!flag_first) {
+                ss << ", ";
+            }
+            flag_first = false;
+            ss << frames[i].MyID();
+        }
+        ss << "): ";
+    }
+    return ss.str();
 }
 
 }}
