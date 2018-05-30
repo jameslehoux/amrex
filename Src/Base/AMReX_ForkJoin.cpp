@@ -2,6 +2,45 @@
 #include <AMReX_ParmParse.H>
 #include <AMReX_Print.H>
 
+using namespace amrex;
+
+namespace {
+
+inline bool file_exists(std::string file_path) {
+  std::ifstream ifs(file_path);
+  return ifs.good();
+}
+
+template <class T>
+std::string
+str_join (Vector<T> xs, std::string sep)
+{
+    std::ostringstream ss;
+    bool flag_first = true;
+    for (int i = 0; i < xs.size(); ++i) {
+        if (!flag_first) {
+            ss << sep;
+        }
+        flag_first = false;
+        ss << xs[i];
+    }
+    return ss.str();
+}
+
+Vector<int>
+get_frame_id_vec ()
+{
+    const auto &frames = amrex::ParallelContext::frames;
+    Vector<int> result;
+    // ignore first (global) frame
+    for (int i = 1; i < frames.size(); ++i) {
+        result.push_back(frames[i].MyID());
+    }
+    return result;
+}
+
+}
+
 namespace amrex {
 
 ForkJoin::ForkJoin (const Vector<int> &task_rank_n)
@@ -111,7 +150,7 @@ ForkJoin::modify_split (const std::string &name, int idx, Vector<ComponentSet> c
 }
 
 void
-ForkJoin::copy_data_to_tasks (MPI_Comm /*task_comm*/)
+ForkJoin::copy_data_to_tasks ()
 {
     if (flag_verbose) {
         amrex::Print() << "Copying data into fork-join tasks ...\n";
@@ -280,6 +319,23 @@ ForkJoin::split_tasks ()
 #endif
 
     return new_comm;
+}
+
+std::string
+ForkJoin::get_fresh_io_filename ()
+{
+    // build base filename
+    std::string result_base = "forkjoin_task_output";
+    result_base += ".T-" + str_join(get_frame_id_vec(), "-");
+    result_base += ".R-" + std::to_string(ParallelContext::MyProcSub());
+
+    // concatenate an integer to the end to make unique
+    std::string result;
+    int i = 0;
+    do {
+        result = result_base + ".I-" + std::to_string(i++);
+    } while (file_exists(result));
+    return result;
 }
 
 }

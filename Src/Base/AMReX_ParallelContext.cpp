@@ -12,7 +12,9 @@ Frame::Frame (MPI_Comm c, int id, int io_rank)
     : comm(c),
       m_id(id),
       m_mpi_tag(ParallelDescriptor::MinTag()),
-      m_io_rank(io_rank)
+      m_io_rank(io_rank),
+      m_out_filename(""),
+      m_out(nullptr)
 {
 #ifdef BL_USE_MPI
     MPI_Comm_group(comm, &group);
@@ -34,7 +36,9 @@ Frame::Frame (Frame && rhs) noexcept
       m_rank_me(rhs.m_rank_me),
       m_nranks (rhs.m_nranks),
       m_mpi_tag(rhs.m_mpi_tag),
-      m_io_rank(rhs.m_io_rank)
+      m_io_rank(rhs.m_io_rank),
+      m_out_filename(std::move(rhs.m_out_filename)),
+      m_out    (std::move(rhs.m_out))
 {
     rhs.group = MPI_GROUP_NULL;
 }
@@ -107,23 +111,23 @@ Frame::get_inc_mpi_tag ()
     return cur_tag;
 }
 
-// return a string describing task in fork-join tree
-std::string task_id_str()
+void
+Frame::set_ofs_name (std::string filename)
 {
-    std::ostringstream ss;
-    if (frames.back().MyID() != -1) {
-        ss << "Task (";
-        bool flag_first = true;
-        for (int i = 1; i < frames.size(); ++i) {
-            if (!flag_first) {
-                ss << ", ";
-            }
-            flag_first = false;
-            ss << frames[i].MyID();
+    m_out_filename = std::move(filename);
+}
+
+std::ofstream *
+Frame::get_ofs_ptr ()
+{
+    if (m_out_filename.empty()) {
+        return nullptr;
+    } else {
+        if (!m_out) {
+            m_out.reset(new std::ofstream(m_out_filename));
         }
-        ss << "): ";
+        return m_out.get();
     }
-    return ss.str();
 }
 
 }}

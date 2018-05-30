@@ -1,6 +1,9 @@
 #ifndef AMREX_PARALLELCONTEXT_H
 #define AMREX_PARALLELCONTEXT_H
 
+#include <memory>
+#include <fstream>
+
 #include <AMReX_Vector.H>
 #include <AMReX_ccse-mpi.H>
 
@@ -26,6 +29,8 @@ public:
     void global_to_local_rank (int* local, const int* global, std::size_t n) const;
     int global_to_local_rank (int grank) const;
     int get_inc_mpi_tag ();
+    void set_ofs_name (std::string filename);
+    std::ofstream * get_ofs_ptr ();
 
     // sub-communicator associated with frame
     MPI_Comm comm = MPI_COMM_NULL;
@@ -37,6 +42,8 @@ private:
     int m_nranks  =  0; // local # of ranks
     int m_mpi_tag = -1;
     int m_io_rank = -1;
+    std::string m_out_filename;
+    std::unique_ptr<std::ofstream> m_out;
 };
 
 extern Vector<Frame> frames; // stack of communicator frames
@@ -51,6 +58,8 @@ inline int NProcsAll () { return frames[0].NProcs(); }
 inline int MyProcAll () { return frames[0].MyProc(); }
 // IO rank in world communicator
 inline int IOProcessorNumberAll () { return frames[0].IOProc(); }
+// Pointer to ofstream
+inline std::ofstream * OFSPtrAll () { return frames[0].get_ofs_ptr(); }
 
 // sub-communicator for current frame
 inline MPI_Comm CommunicatorSub () { return frames.back().comm; }
@@ -62,9 +71,9 @@ inline int NProcsSub () { return frames.back().NProcs(); }
 inline int MyProcSub () { return frames.back().MyProc(); }
 // IO sub-rank in current frame
 inline int IOProcessorNumberSub () { return frames.back().IOProc(); }
+// Pointer to ofstream
+inline std::ofstream * OFSPtrSub () { return frames.back().get_ofs_ptr(); }
 
-// string describing task in fork-join tree
-std::string task_id_str();
 // get and increment mpi tag in current frame
 inline int get_inc_mpi_tag () { return frames.back().get_inc_mpi_tag(); }
 // translate between local rank and global rank
@@ -77,6 +86,9 @@ inline void global_to_local_rank (int* local, const int* global, int n)
 
 inline void push (MPI_Comm c) { frames.emplace_back(c); }
 inline void push (MPI_Comm c, int id, int io_rank) { frames.emplace_back(c, id, io_rank); }
+inline void set_last_frame_ofs (const std::string & filename) {
+    frames.back().set_ofs_name(filename);
+}
 // Note that it's the user's responsibility to free the MPI_Comm
 inline void pop () { frames.pop_back(); }
 

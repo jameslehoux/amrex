@@ -49,11 +49,16 @@ namespace amrex
 	    { ss.precision(os.precision()); }
 
 	~Print () {
-	    if (rank == AllProcs || rank == ParallelDescriptor::MyProc(comm)) {
-		os.flush();
-                os << ParallelContext::task_id_str();
+	    if (rank == AllProcs || rank == ParallelContext::MyProcSub()) {
+                std::ostream * my_os = ParallelContext::OFSPtrSub();
+                if (my_os) {
+                    my_os->flush();
+                    (*my_os) << ss.str();
+                    my_os->flush();
+                }
+                os.flush();
                 os << ss.str();
-		os.flush();
+                os.flush();
 	    }
 	}
 
